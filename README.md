@@ -34,8 +34,17 @@ Look for the `accountId` field in the JSON response.
 
 ```bash
 cp .env.example .env
-# Edit .env and paste your Tempo API token
 ```
+
+Edit `.env` with your values:
+
+```env
+TEMPO_API_TOKEN=your-tempo-api-token
+ATLASSIAN_ACCOUNT_ID=your-account-id
+JIRA_ISSUE_KEY=your-jira-issue-key
+```
+
+The script auto-loads `.env` on startup, so no need to `source` or `export` manually.
 
 ## Exporting CSV from Tripletex
 
@@ -52,23 +61,26 @@ The downloaded file will be named something like `Månedsoversikt - (Mars 2026).
 
 ## Usage
 
-```bash
-# Load your token
-export TEMPO_API_TOKEN="your-token-here"
-# Or: source .env
+With `.env` configured, you only need to pass the CSV file:
 
+```bash
 # Preview first (always recommended)
 python3 tripletex_to_tempo.py \
   --csv "Månedsoversikt - (Mars 2026).csv" \
-  --issue "TPRIBO-123" \
-  --account-id "your-atlassian-account-id" \
   --dry-run
 
 # Run for real
 python3 tripletex_to_tempo.py \
-  --csv "Månedsoversikt - (Mars 2026).csv" \
-  --issue "TPRIBO-123" \
-  --account-id "your-atlassian-account-id"
+  --csv "Månedsoversikt - (Mars 2026).csv"
+```
+
+You can still override any `.env` value via CLI flags:
+
+```bash
+python3 tripletex_to_tempo.py \
+  --csv "file.csv" \
+  --issue "OTHER-99" \
+  --account-id "different-id"
 ```
 
 ### Options
@@ -89,4 +101,4 @@ The script is safe to run multiple times for the same period:
 - **Already logged (different hours)**: Skipped with warning. Delete the worklog in Tempo first if you want to re-sync.
 - **Not yet logged**: Created normally
 
-Only worklogs with the description "Synced from Tripletex" are considered for duplicate detection, so your manually created worklogs are never affected.
+The script checks **all** worklogs for the target issue on each date, regardless of how they were created (manually or via sync). This prevents duplicates even if you've already logged hours manually in Tempo.

@@ -15,10 +15,9 @@ Single-file Python 3 script (`tripletex_to_tempo.py`) with zero external depende
 ## Running
 
 ```bash
-export TEMPO_API_TOKEN="..."
-python3 tripletex_to_tempo.py --csv "file.csv" --issue TPRIBO-123 --account-id "abc123" --dry-run
+python3 tripletex_to_tempo.py --csv "file.csv" --dry-run
 ```
 
 ## Secrets
 
-The Tempo API token must come from the `TEMPO_API_TOKEN` environment variable. Never hardcode tokens.
+All secrets and config live in `.env` (auto-loaded by the script). Never hardcode tokens. The `.env` file is gitignored.
