@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 Tripletex to Tempo sync script.
 
@@ -40,6 +42,7 @@ def load_dotenv(filepath: str = ".env") -> None:
                     os.environ.setdefault(key.strip(), value.strip())
             return
 
+
 def resolve_issue_id(issue_key: str) -> int:
     """Resolve a Jira issue key (e.g. PROJ-123) to its numeric ID via Jira REST API."""
     site = os.environ.get("ATLASSIAN_SITE", "")
@@ -53,7 +56,9 @@ def resolve_issue_id(issue_key: str) -> int:
         if not email:
             print("  ATLASSIAN_EMAIL")
         if not api_token:
-            print("  ATLASSIAN_API_TOKEN (create at https://id.atlassian.com/manage-profile/security/api-tokens)")
+            print(
+                "  ATLASSIAN_API_TOKEN (create at https://id.atlassian.com/manage-profile/security/api-tokens)"
+            )
         sys.exit(1)
 
     url = f"https://{site}/rest/api/3/issue/{issue_key}?fields=id"
@@ -75,14 +80,25 @@ def resolve_issue_id(issue_key: str) -> int:
         return issue_id
     except HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
-        print(f"ERROR: Could not resolve issue key '{issue_key}' ({e.code}): {body[:200]}")
+        print(
+            f"ERROR: Could not resolve issue key '{issue_key}' ({e.code}): {body[:200]}"
+        )
         sys.exit(1)
 
 
 MONTH_NAMES = {
-    "januar": 1, "februar": 2, "mars": 3, "april": 4,
-    "mai": 5, "juni": 6, "juli": 7, "august": 8,
-    "september": 9, "oktober": 10, "november": 11, "desember": 12,
+    "januar": 1,
+    "februar": 2,
+    "mars": 3,
+    "april": 4,
+    "mai": 5,
+    "juni": 6,
+    "juli": 7,
+    "august": 8,
+    "september": 9,
+    "oktober": 10,
+    "november": 11,
+    "desember": 12,
 }
 
 
@@ -143,7 +159,9 @@ def parse_tripletex_csv(filepath: str, activity_filter: str) -> list[dict]:
     year, month = parse_month_year_from_filename(filepath)
 
     if not year or not month:
-        print(f"Could not detect month/year from filename: {os.path.basename(filepath)}")
+        print(
+            f"Could not detect month/year from filename: {os.path.basename(filepath)}"
+        )
         year_input = input("Enter year (e.g. 2026): ").strip()
         month_input = input("Enter month number (1-12): ").strip()
         year, month = int(year_input), int(month_input)
@@ -189,11 +207,13 @@ def parse_tripletex_csv(filepath: str, activity_filter: str) -> list[dict]:
                 except ValueError:
                     continue
 
-                entries.append({
-                    "date": d.isoformat(),
-                    "hours": hours,
-                    "seconds": int(hours * 3600),
-                })
+                entries.append(
+                    {
+                        "date": d.isoformat(),
+                        "hours": hours,
+                        "seconds": int(hours * 3600),
+                    }
+                )
 
     return entries
 
@@ -205,8 +225,9 @@ def format_hours(hours: float) -> str:
     return f"{h}h {m}m" if m else f"{h}h"
 
 
-def tempo_request(method: str, path: str, token: str,
-                  data: dict | None = None) -> dict | list | None:
+def tempo_request(
+    method: str, path: str, token: str, data: dict | None = None
+) -> dict | list | None:
     """Make an authenticated request to the Tempo API."""
     url = f"{TEMPO_API_BASE}{path}"
     body = json.dumps(data).encode("utf-8") if data else None
@@ -228,8 +249,9 @@ def tempo_request(method: str, path: str, token: str,
     return json.loads(raw)
 
 
-def fetch_existing_worklogs(account_id: str, from_date: str, to_date: str,
-                            token: str) -> list[dict]:
+def fetch_existing_worklogs(
+    account_id: str, from_date: str, to_date: str, token: str
+) -> list[dict]:
     """
     Fetch all existing worklogs for the user in the given date range.
 
@@ -278,8 +300,14 @@ def build_existing_lookup(worklogs: list[dict], issue_id: int) -> dict[str, list
     return lookup
 
 
-def post_to_tempo(entries: list[dict], issue_key: str, issue_id: int | None,
-                  account_id: str, token: str, dry_run: bool = False) -> None:
+def post_to_tempo(
+    entries: list[dict],
+    issue_key: str,
+    issue_id: int | None,
+    account_id: str,
+    token: str,
+    dry_run: bool = False,
+) -> None:
     """Post worklogs to Tempo API v4 with upsert behavior."""
     if not entries:
         print("No entries to post.")
@@ -300,7 +328,9 @@ def post_to_tempo(entries: list[dict], issue_key: str, issue_id: int | None,
             print(f"Found {synced_count} previously synced worklog(s)\n")
         except HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")
-            print(f"WARNING: Could not fetch existing worklogs ({e.code}): {body[:200]}")
+            print(
+                f"WARNING: Could not fetch existing worklogs ({e.code}): {body[:200]}"
+            )
             print("Proceeding without duplicate check\n")
 
     label = "DRY RUN" if dry_run else "Posting"
@@ -320,7 +350,9 @@ def post_to_tempo(entries: list[dict], issue_key: str, issue_id: int | None,
                 wl.get("timeSpentSeconds", 0) for wl in existing_lookup[d]
             )
             if existing_seconds == entry["seconds"]:
-                print(f"  SKIP {d}  {time_str:>6s}  already logged ({existing_seconds}s)")
+                print(
+                    f"  SKIP {d}  {time_str:>6s}  already logged ({existing_seconds}s)"
+                )
                 skipped += 1
                 continue
             else:
@@ -370,24 +402,27 @@ def main():
         description="Sync Tripletex hours to Tempo (Atlassian)"
     )
     parser.add_argument(
-        "--csv", required=True,
-        help="Path to the Tripletex monthly overview CSV file"
+        "--csv", required=True, help="Path to the Tripletex monthly overview CSV file"
     )
     parser.add_argument(
-        "--issue", default=os.environ.get("JIRA_ISSUE_KEY", ""),
-        help="Jira issue key (default: JIRA_ISSUE_KEY from .env)"
+        "--issue",
+        default=os.environ.get("JIRA_ISSUE_KEY", ""),
+        help="Jira issue key (default: JIRA_ISSUE_KEY from .env)",
     )
     parser.add_argument(
-        "--activity", default="Konsulentbistand",
-        help="Tripletex activity to filter on (default: Konsulentbistand)"
+        "--activity",
+        default="Konsulentbistand",
+        help="Tripletex activity to filter on (default: Konsulentbistand)",
     )
     parser.add_argument(
-        "--account-id", default=os.environ.get("ATLASSIAN_ACCOUNT_ID", ""),
-        help="Atlassian account ID (default: ATLASSIAN_ACCOUNT_ID from .env)"
+        "--account-id",
+        default=os.environ.get("ATLASSIAN_ACCOUNT_ID", ""),
+        help="Atlassian account ID (default: ATLASSIAN_ACCOUNT_ID from .env)",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
-        help="Preview what would be posted without actually posting"
+        "--dry-run",
+        action="store_true",
+        help="Preview what would be posted without actually posting",
     )
     args = parser.parse_args()
 
@@ -436,8 +471,9 @@ def main():
         issue_id = resolve_issue_id(args.issue)
         print()
 
-    post_to_tempo(entries, args.issue, issue_id, args.account_id, token,
-                  dry_run=args.dry_run)
+    post_to_tempo(
+        entries, args.issue, issue_id, args.account_id, token, dry_run=args.dry_run
+    )
 
 
 if __name__ == "__main__":

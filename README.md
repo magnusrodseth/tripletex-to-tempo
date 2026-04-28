@@ -30,7 +30,15 @@ https://YOUR-DOMAIN.atlassian.net/rest/api/3/myself
 
 Look for the `accountId` field in the JSON response.
 
-### 3. Set up environment
+### 3. Get your Atlassian (Jira) API token
+
+This is used to resolve Jira issue keys (e.g. `HEIHU-1`) to numeric IDs.
+
+1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
+2. Click **Create API token**
+3. Give it a label and copy the token
+
+### 4. Set up environment
 
 ```bash
 cp .env.example .env
@@ -40,9 +48,21 @@ Edit `.env` with your values:
 
 ```env
 TEMPO_API_TOKEN=your-tempo-api-token
+ATLASSIAN_SITE=your-domain.atlassian.net
+ATLASSIAN_EMAIL=your-email@example.com
+ATLASSIAN_API_TOKEN=your-jira-api-token
 ATLASSIAN_ACCOUNT_ID=your-account-id
 JIRA_ISSUE_KEY=your-jira-issue-key
 ```
+
+| Variable | Where to find it |
+| --- | --- |
+| `TEMPO_API_TOKEN` | Tempo > Settings > API Integration > New Token |
+| `ATLASSIAN_SITE` | Your Jira domain, e.g. `acme.atlassian.net` (no `https://`) |
+| `ATLASSIAN_EMAIL` | The email you log in to Jira with |
+| `ATLASSIAN_API_TOKEN` | https://id.atlassian.com/manage-profile/security/api-tokens |
+| `ATLASSIAN_ACCOUNT_ID` | Visit `https://YOUR-DOMAIN.atlassian.net/rest/api/3/myself` and copy the `accountId` field |
+| `JIRA_ISSUE_KEY` | The issue to log hours against, e.g. `HEIHU-1` |
 
 The script auto-loads `.env` on startup, so no need to `source` or `export` manually.
 
@@ -51,11 +71,12 @@ The script auto-loads `.env` on startup, so no need to `source` or `export` manu
 1. Log in to [Tripletex](https://tripletex.no)
 2. Go to **Timeliste** (Time sheet) in the left menu
 3. Click **Rapporter** (Reports)
-4. Select **Timeliste - Oversikt** (Time sheet - Overview)
+4. Select **Månedsoversikt** (Monthly overview)
 5. Set the period to the month you want to sync
-6. Set **Vis per** (Show per) to **Dag** (Day)
-7. Click **Vis rapport** (Show report)
-8. Click the **download icon** and choose **CSV**
+6. Click **Vis rapport** (Show report)
+7. Click the **download icon** and choose **CSV**
+
+**Important**: You must use the **Månedsoversikt** report — not "Timeoversikt" or other formats. The script expects one row per activity with day-number columns (1, 2, 3, ... 30/31).
 
 The downloaded file will be named something like `Månedsoversikt - (Mars 2026).csv`.
 
