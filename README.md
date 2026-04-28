@@ -71,11 +71,12 @@ The script auto-loads `.env` on startup, so no need to `source` or `export` manu
 1. Log in to [Tripletex](https://tripletex.no)
 2. Go to **Timeliste** (Time sheet) in the left menu
 3. Click **Rapporter** (Reports)
-4. Select **Timeliste - Oversikt** (Time sheet - Overview)
+4. Select **Månedsoversikt** (Monthly overview)
 5. Set the period to the month you want to sync
-6. Set **Vis per** (Show per) to **Dag** (Day)
-7. Click **Vis rapport** (Show report)
-8. Click the **download icon** and choose **CSV**
+6. Click **Vis rapport** (Show report)
+7. Click the **download icon** and choose **CSV**
+
+**Important**: You must use the **Månedsoversikt** report — not "Timeoversikt" or other formats. The script expects one row per activity with day-number columns (1, 2, 3, ... 30/31).
 
 The downloaded file will be named something like `Månedsoversikt - (Mars 2026).csv`.
 
