@@ -104,15 +104,32 @@ python3 tripletex_to_tempo.py \
   --account-id "different-id"
 ```
 
+### Sync without a CSV (from JSON / the Tripletex MCP)
+
+If you already have the hours as data (for example read from the Tripletex
+MCP), skip the CSV export entirely and pipe a JSON array of `{date, hours}`
+to `--stdin`. The caller filters to the chargeable activity first; the script
+applies the same upsert/skip behavior as the CSV path.
+
+```bash
+echo '[{"date":"2026-06-01","hours":7.5},{"date":"2026-06-02","hours":7.5}]' \
+  | python3 tripletex_to_tempo.py --stdin --dry-run
+
+# Drop --dry-run to post for real
+```
+
 ### Options
 
 | Flag           | Required | Default            | Description                                    |
 | -------------- | -------- | ------------------ | ---------------------------------------------- |
-| `--csv`        | Yes      |                    | Path to the Tripletex monthly overview CSV     |
+| `--csv`        | One of¹  |                    | Path to the Tripletex monthly overview CSV     |
+| `--stdin`      | One of¹  | `false`            | Read entries as a JSON array of `{date, hours}` from stdin |
 | `--issue`      | Yes      |                    | Jira issue key to log hours against            |
 | `--account-id` | Yes      |                    | Your Atlassian account ID                      |
-| `--activity`   | No       | `Konsulentbistand` | Tripletex activity name to filter on           |
+| `--activity`   | No       | `Konsulentbistand` | Tripletex activity name to filter on (CSV mode only) |
 | `--dry-run`    | No       | `false`            | Preview without posting                        |
+
+¹ Provide exactly one input source: `--csv` **or** `--stdin`.
 
 ## Upsert behavior
 

@@ -24,9 +24,13 @@ The most common task. For a project + activity:
 get_recent_projects_and_activities   # confirm name resolves
 execute_hour_registration { entries: [
   { date: "2026-05-28", hours: 7.5,
-    projectName: "Gjensidige", activityName: "Konsulentbistand" }
+    projectName: "Innovasjon i privat", activityName: "Konsulentbistand" },
+  { date: "2026-05-28", hours: 0.5,
+    projectName: "Innovasjon i privat", activityName: "Lunsj - ikke kundebetalt" }
 ]}
 ```
+
+Magnus's standard day is **8h = 7.5 Konsulentbistand (chargeable) + 0.5 Lunsj - ikke kundebetalt (not chargeable)**, both on project *Innovasjon i privat*. "7.5 + 0.5" means exactly this pair.
 
 For a general activity (Ferie, Sykdom, Administrasjon): omit project entirely, pass only activity.
 
@@ -36,8 +40,8 @@ Batch up to 200 entries in one call. Upsert semantics: one entry per `(employee,
 
 ### Log a full work week
 1. `get_current_datetime` for the week's dates.
-2. Build a 5-entry batch (Mon to Fri) with project + activity + 7.5h each.
-3. Call `execute_hour_registration` once. Read `dayStates` to confirm.
+2. Build a batch for Mon–Fri. For Magnus that's **two lines per day** (7.5 Konsulentbistand + 0.5 Lunsj - ikke kundebetalt) on *Innovasjon i privat* = 10 entries; check `list_company_holidays` and skip holidays/weekends.
+3. Call `execute_hour_registration` once. Read `dayStates` (each day should total 8h) to confirm.
 
 ### Audit / fix already-logged hours
 1. `search_hour_entries { dateFrom, dateTo }` to see what's there.
@@ -50,9 +54,16 @@ Batch up to 200 entries in one call. Upsert semantics: one entry per `(employee,
 - Reverse via `unapprove_*` / `reopen_*`.
 
 ### Monthly Tempo sync (this repo's purpose)
-Two options now exist:
-- **CSV path** (existing): `python3 tripletex_to_tempo.py --csv ~/Desktop/...csv --dry-run` per the project's documented workflow. See [feedback memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md).
-- **MCP path** (new): `search_hour_entries { dateFrom, dateTo }` for the month, filter by activity `Konsulentbistand`, then push to Tempo. Skips needing the CSV export.
+Two options exist. See [feedback memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md) for defaults. Always `--dry-run` first, then post. Only the chargeable **Konsulentbistand** hours (7.5/day) sync — the 0.5h lunch line stays in Tripletex. Target issue: `HEIHU-1`.
+
+- **MCP path** (preferred when hours were logged via the MCP this session): `search_hour_entries { dateFrom, dateTo }` for the month, keep only `Konsulentbistand` lines, build a JSON array of `{date, hours}`, and pipe it to the script's stdin mode — no CSV needed:
+  ```bash
+  echo '[{"date":"2026-06-01","hours":7.5}, ...]' \
+    | python3 tripletex_to_tempo.py --stdin --dry-run   # drop --dry-run to post
+  ```
+- **CSV path** (when working from an exported report): `python3 tripletex_to_tempo.py --csv ~/Desktop/...csv --dry-run`. The script filters by `--activity Konsulentbistand` automatically.
+
+Both paths share the same upsert/skip logic, so re-running never duplicates worklogs.
 
 ### Outgoing invoice (3-step atomic flow)
 1. `execute_order` to create order + lines (link products via `productId`, free-text lines need `vatTypeId` + `unitPriceExclVat`).
@@ -88,4 +99,9 @@ See [REFERENCE.md](REFERENCE.md) for the full per-tool breakdown. Categories:
 
 ## Project-specific context
 
-Magnus is a Capra consultant logging to Gjensidige. Defaults: activity `Konsulentbistand`, 7.5 hours/day, single Jira issue in Tempo. See [user_consultant memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/user_consultant.md) and [feedback_sync_workflow memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md).
+Magnus is a Capra consultant logging to Gjensidige. Defaults:
+- **Project**: `Innovasjon i privat` (customer *Gjensidige Business Services AB*). Note: "Gjensidige" alone is not the project name.
+- **Daily pattern**: 7.5h `Konsulentbistand` (chargeable) + 0.5h `Lunsj - ikke kundebetalt` (not chargeable) = 8h.
+- **Tempo target**: single Jira issue `HEIHU-1`; only the 7.5h Konsulentbistand syncs.
+
+See [user_consultant memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/user_consultant.md) and [feedback_sync_workflow memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md).

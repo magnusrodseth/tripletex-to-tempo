@@ -218,6 +218,54 @@ def parse_tripletex_csv(filepath: str, activity_filter: str) -> list[dict]:
     return entries
 
 
+def parse_stdin_entries() -> list[dict]:
+    """
+    Read hour entries as a JSON array from stdin.
+
+    Each item must have {"date": "YYYY-MM-DD", "hours": <number>}. Returns
+    the same shape as parse_tripletex_csv: {date, hours, seconds}.
+
+    Use this to feed hours read straight from the Tripletex MCP into the
+    sync, skipping the CSV export. The caller is responsible for filtering
+    to the chargeable activity (e.g. Konsulentbistand) before piping in.
+    """
+    raw = sys.stdin.read()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: stdin is not valid JSON: {e}")
+        sys.exit(1)
+
+    if not isinstance(data, list):
+        print("ERROR: stdin JSON must be an array of {date, hours} objects.")
+        sys.exit(1)
+
+    entries = []
+    for item in data:
+        if not isinstance(item, dict) or "date" not in item or "hours" not in item:
+            print(f"ERROR: each entry needs 'date' and 'hours': {item!r}")
+            sys.exit(1)
+
+        try:
+            hours = float(item["hours"])
+        except (TypeError, ValueError):
+            print(f"ERROR: invalid hours value: {item!r}")
+            sys.exit(1)
+
+        if hours <= 0:
+            continue
+
+        entries.append(
+            {
+                "date": item["date"],
+                "hours": hours,
+                "seconds": int(hours * 3600),
+            }
+        )
+
+    return entries
+
+
 def format_hours(hours: float) -> str:
     """Format hours as 'Xh Ym'."""
     h = int(hours)
@@ -402,7 +450,13 @@ def main():
         description="Sync Tripletex hours to Tempo (Atlassian)"
     )
     parser.add_argument(
-        "--csv", required=True, help="Path to the Tripletex monthly overview CSV file"
+        "--csv", help="Path to the Tripletex monthly overview CSV file"
+    )
+    parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help='Read entries as a JSON array of {"date": "YYYY-MM-DD", "hours": N} '
+        "from stdin instead of a CSV (e.g. hours read from the Tripletex MCP)",
     )
     parser.add_argument(
         "--issue",
@@ -426,6 +480,10 @@ def main():
     )
     args = parser.parse_args()
 
+    if bool(args.csv) == bool(args.stdin):
+        print("ERROR: Provide exactly one input source: --csv FILE or --stdin.")
+        sys.exit(1)
+
     token = os.environ.get("TEMPO_API_TOKEN", "")
     if not token and not args.dry_run:
         print("ERROR: Set TEMPO_API_TOKEN in .env or as environment variable.")
@@ -439,28 +497,35 @@ def main():
         print("ERROR: Set ATLASSIAN_ACCOUNT_ID in .env or pass --account-id.")
         sys.exit(1)
 
-    # Parse CSV
-    print(f"Reading: {args.csv}")
-    print(f"Activity filter: {args.activity}\n")
+    # Build entries from the chosen input source
+    if args.stdin:
+        print("Reading entries from stdin (JSON)\n")
+        entries = parse_stdin_entries()
+        if not entries:
+            print("No entries received on stdin.")
+            sys.exit(1)
+    else:
+        print(f"Reading: {args.csv}")
+        print(f"Activity filter: {args.activity}\n")
 
-    entries = parse_tripletex_csv(args.csv, args.activity)
+        entries = parse_tripletex_csv(args.csv, args.activity)
 
-    if not entries:
-        print("No matching entries found. Check your --activity filter.")
-        print("Available activities in the file:")
-        enc = detect_encoding(args.csv)
-        with open(args.csv, "r", encoding=enc) as f:
-            reader = csv.reader(f, delimiter=";")
-            next(reader)
-            activities = set()
-            for row in reader:
-                if len(row) > 5:
-                    a = row[5].strip().strip('"')
-                    if a:
-                        activities.add(a)
-            for a in sorted(activities):
-                print(f"  - {a}")
-        sys.exit(1)
+        if not entries:
+            print("No matching entries found. Check your --activity filter.")
+            print("Available activities in the file:")
+            enc = detect_encoding(args.csv)
+            with open(args.csv, "r", encoding=enc) as f:
+                reader = csv.reader(f, delimiter=";")
+                next(reader)
+                activities = set()
+                for row in reader:
+                    if len(row) > 5:
+                        a = row[5].strip().strip('"')
+                        if a:
+                            activities.add(a)
+                for a in sorted(activities):
+                    print(f"  - {a}")
+            sys.exit(1)
 
     total_hours = sum(e["hours"] for e in entries)
     print(f"\nFound {len(entries)} days, total: {total_hours} hours\n")
