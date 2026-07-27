@@ -11,6 +11,7 @@ Per entry:
 - `date` (yyyy-MM-dd, required)
 - `hours` (>0, rounded to 2 decimals, required)
 - Project: pass `projectId` OR `projectName`. For general activities (Ferie, Sykdom, Administrasjon) omit both, or pass `projectId=0`.
+  - `Ferie` is registered as **8h** per day (not 7.5h), as a single line with no accompanying lunch entry.
 - Activity: pass `activityId` OR `activityName` (required).
 - `comment` (optional free text, preserved on updates if omitted).
 

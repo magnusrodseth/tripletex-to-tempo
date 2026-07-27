@@ -34,6 +34,10 @@ Magnus's standard day is **8h = 7.5 Konsulentbistand (chargeable) + 0.5 Lunsj - 
 
 For a general activity (Ferie, Sykdom, Administrasjon): omit project entirely, pass only activity.
 
+**Ferie is 8h, not 7.5h.** A vacation day is a single 8h `Ferie` line: no project, and no
+0.5h lunch line alongside it. Never reuse the 7.5 + 0.5 workday split for absence. Confirmed
+by Tuva Brynildsen (Capra) on 2026-07-27: "ferie føres som 8 timer og ikke 7,5 time".
+
 Batch up to 200 entries in one call. Upsert semantics: one entry per `(employee, date, project, activity)`. Re-registering replaces hours.
 
 ## Workflows
@@ -102,6 +106,7 @@ See [REFERENCE.md](REFERENCE.md) for the full per-tool breakdown. Categories:
 Magnus is a Capra consultant logging to Gjensidige. Defaults:
 - **Project**: `Innovasjon i privat` (customer *Gjensidige Business Services AB*). Note: "Gjensidige" alone is not the project name.
 - **Daily pattern**: 7.5h `Konsulentbistand` (chargeable) + 0.5h `Lunsj - ikke kundebetalt` (not chargeable) = 8h.
+- **Vacation pattern**: `Ferie` is a single 8h line, no project, no lunch line. The 7.5 + 0.5 split applies to workdays only.
 - **Tempo target**: single Jira issue `HEIHU-1`; only the 7.5h Konsulentbistand syncs.
 
 See [user_consultant memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/user_consultant.md) and [feedback_sync_workflow memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md).
