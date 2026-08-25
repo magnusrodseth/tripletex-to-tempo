@@ -12,6 +12,19 @@ Single-file Python 3 script (`tripletex_to_tempo.py`) with zero external depende
 - **CSV format**: Tripletex exports monthly overviews as semicolon-delimited, ISO-8859-1-encoded CSV files. The script auto-detects encoding.
 - **No API key for Tripletex**: We use CSV export instead of the Tripletex API to avoid the complexity of obtaining API credentials.
 
+## Tripletex MCP
+
+Hours can be read straight from the Tripletex MCP instead of a CSV export. The server is
+declared per-project in `~/.claude.json` as `https://mcp.tripletex.no` (transport `http`).
+
+Its OAuth login fails in Claude Code with an RFC 9207 issuer mismatch, because Tripletex
+advertises `iss` support and then omits the parameter. That is an upstream bug
+([Tripletex/tripletex-mcp#3](https://github.com/Tripletex/tripletex-mcp/issues/3)), not a
+config problem. The manual re-auth procedure is in
+[`.claude/skills/tripletex-mcp/SKILL.md`](.claude/skills/tripletex-mcp/SKILL.md) under
+"Connecting the MCP", and in
+[our comment on the issue](https://github.com/Tripletex/tripletex-mcp/issues/3#issuecomment-5411074661).
+
 ## Running
 
 ```bash

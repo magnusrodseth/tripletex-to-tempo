@@ -7,6 +7,66 @@ description: Drive Tripletex (Norwegian accounting/time-tracking) via its MCP se
 
 Tripletex internal MCP for accounting and time tracking. All tools are prefixed `mcp__tripletex__`.
 
+## Connecting the MCP (OAuth workaround)
+
+Server URL `https://mcp.tripletex.no`, transport `http`, exactly as the
+[beta docs](https://developer.tripletex.no/tripletex-mcp-beta/) specify. The config is correct
+and needs no change, but the normal `/mcp` login **fails in Claude Code**:
+
+```
+Issuer mismatch in authorization response (RFC 9207): expected "https://mcp.tripletex.no/", received undefined
+```
+
+Tripletex advertises `"authorization_response_iss_parameter_supported": true` in
+`/.well-known/oauth-authorization-server` but never sends `iss` on the redirect back. RFC 9207
+§2.4 makes the check mandatory once that flag is true, so Claude Code rejects a login the
+browser has already reported as successful. Claude Desktop and the claude.ai connector work
+because their OAuth client does not enforce the check yet.
+
+Tracked upstream as [Tripletex/tripletex-mcp#3](https://github.com/Tripletex/tripletex-mcp/issues/3).
+The workaround below is written up in
+[our comment on that thread](https://github.com/Tripletex/tripletex-mcp/issues/3#issuecomment-5411074661),
+verified 25.08.2026 on Claude Code 2.1.245.
+
+### Re-authenticating by hand
+
+Do this when the server drops back to "needs authentication". The browser must never reach the
+localhost callback: Claude Code's own callback listener receives it, fails the `iss` check, and
+cancels the flow, spending the authorization code before you can reuse it. So drive the last
+hop with `curl` instead of the browser.
+
+1. `mcp__tripletex__authenticate` returns an authorize URL. Note its `redirect_uri` port, it
+   changes on every attempt.
+2. Open that URL in Chrome. The `playwriter` skill does this without leaving the terminal. It
+   lands on `/oauth/select-company?id=<selectionId>`. **Do not click Connect.**
+3. Read that page's cookies. `tlx_cs_nonce` is scoped to `Path=/oauth`, so query cookies
+   against the full page URL rather than the origin, or step 4 answers 400:
+   ```bash
+   playwriter -s <id> -e 'const cdp = await getCDPSession({ page: state.page }); const { cookies } = await cdp.send("Network.getCookies", { urls: [state.page.url()] }); console.log(cookies.map(c => c.name + "=" + c.value).join("; "))'
+   ```
+4. Submit the company selection outside the browser, so nothing follows the 302:
+   ```bash
+   curl -sS -i -X POST https://mcp.tripletex.no/oauth/select-company \
+     -H 'Content-Type: application/x-www-form-urlencoded' \
+     -H 'Origin: https://mcp.tripletex.no' \
+     -H 'Referer: https://mcp.tripletex.no/oauth/select-company?id=<selectionId>' \
+     -b '<cookies from step 3>' \
+     --data-urlencode 'selectionId=<selectionId>' \
+     --data-urlencode 'companyId=228265'
+   ```
+   curl does not follow redirects, so the `location:` header hands over the callback URL with
+   the `code`.
+5. Pass that URL to `mcp__tripletex__complete_authentication` with
+   `&iss=https%3A%2F%2Fmcp.tripletex.no%2F` appended by hand. That satisfies the check and the
+   server connects with the full tool set.
+
+`companyId` 228265 is Capra Consulting AS. Any failed attempt invalidates both the
+authorization code and the selection nonce, so restart from step 1 instead of retrying a step.
+
+Two blind alleys, both already tried and both useless here: Playwright's `page.route()` and CDP
+`Network.setBlockedURLs` fail to stop the callback navigation under playwriter's extension mode,
+so the request still reaches Claude Code and kills the flow.
+
 ## Core conventions
 
 1. **No raw IDs in user-facing text.** IDs are for tool plumbing only. Show names, dates, hours, amounts to the user.
@@ -68,6 +128,13 @@ Two options exist. See [feedback memory](../../../../../.Codex/projects/-Users-m
 - **CSV path** (when working from an exported report): `python3 tripletex_to_tempo.py --csv ~/Desktop/...csv --dry-run`. The script filters by `--activity Konsulentbistand` automatically.
 
 Both paths share the same upsert/skip logic, so re-running never duplicates worklogs.
+
+**`--dry-run` does not check Tempo.** It returns before resolving the Jira issue and fetching
+existing worklogs, so it reports every day as "created" even when Tempo already holds a
+different number of hours for that date. Treat it as a parser check only. The real run is what
+surfaces conflicts, and it *skips* them rather than reconciling: a date whose hours changed in
+Tripletex after an earlier sync stays stale in Tempo until you update that worklog yourself
+(`PUT /worklogs/<id>` on the Tempo v4 API) or delete it and re-sync.
 
 ### Outgoing invoice (3-step atomic flow)
 1. `execute_order` to create order + lines (link products via `productId`, free-text lines need `vatTypeId` + `unitPriceExclVat`).
