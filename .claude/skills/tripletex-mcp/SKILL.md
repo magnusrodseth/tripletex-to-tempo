@@ -81,22 +81,18 @@ so the request still reaches Claude Code and kills the flow.
 The most common task. For a project + activity:
 
 ```
-get_recent_projects_and_activities   # confirm name resolves
+get_recent_projects_and_activities   # confirm the current project and activity
 execute_hour_registration { entries: [
-  { date: "2026-05-28", hours: 7.5,
-    projectName: "Innovasjon i privat", activityName: "Konsulentbistand" },
-  { date: "2026-05-28", hours: 0.5,
-    projectName: "Innovasjon i privat", activityName: "Lunsj - ikke kundebetalt" }
+  { date: "2026-10-01", hours: 7.5,
+    projectName: "Innovasjon i privat", activityName: "Konsulentbistand" }
 ]}
 ```
 
-Magnus's standard day is **8h = 7.5 Konsulentbistand (chargeable) + 0.5 Lunsj - ikke kundebetalt (not chargeable)**, both on project *Innovasjon i privat*. "7.5 + 0.5" means exactly this pair.
+From 2026-10-01, Magnus's standard workday is **7.5h without a lunch entry**. Confirm the project activity still exists after Capra's code changes before logging or syncing.
 
-For a general activity (Ferie, Sykdom, Administrasjon): omit project entirely, pass only activity.
+For general activities (`Interntid`, `Interntid (Overtidsgodkjent)`, Ferie, Sykdom): omit the project. Include a comment when using approved overtime.
 
-**Ferie is 8h, not 7.5h.** A vacation day is a single 8h `Ferie` line: no project, and no
-0.5h lunch line alongside it. Never reuse the 7.5 + 0.5 workday split for absence. Confirmed
-by Tuva Brynildsen (Capra) on 2026-07-27: "ferie føres som 8 timer og ikke 7,5 time".
+**Absence needs clarification.** Before October 2026, Capra instructed Magnus to register 8h of `Ferie` per full day. The new 7.5h announcement does not explicitly address vacation or other absence. Confirm the current rule before logging those entries.
 
 Batch up to 200 entries in one call. Upsert semantics: one entry per `(employee, date, project, activity)`. Re-registering replaces hours.
 
@@ -104,8 +100,8 @@ Batch up to 200 entries in one call. Upsert semantics: one entry per `(employee,
 
 ### Log a full work week
 1. `get_current_datetime` for the week's dates.
-2. Build a batch for Mon–Fri. For Magnus that's **two lines per day** (7.5 Konsulentbistand + 0.5 Lunsj - ikke kundebetalt) on *Innovasjon i privat* = 10 entries; check `list_company_holidays` and skip holidays/weekends.
-3. Call `execute_hour_registration` once. Read `dayStates` (each day should total 8h) to confirm.
+2. Build a batch for actual workdays. For a standard Mon–Fri week, that's **one 7.5h project entry per day**, with no lunch entries; check `list_company_holidays` and skip holidays/weekends.
+3. Call `execute_hour_registration` once. Read `dayStates` to confirm the intended hours and activities.
 
 ### Audit / fix already-logged hours
 1. `search_hour_entries { dateFrom, dateTo }` to see what's there.
@@ -113,12 +109,12 @@ Batch up to 200 entries in one call. Upsert semantics: one entry per `(employee,
 3. Entries in COMPLETED or APPROVED months are locked, run `reopen_month` first.
 
 ### Complete and approve a timesheet period
-- Employee: `complete_week` / `complete_month` once done logging.
-- Manager: `get_week_status` (or month) to find COMPLETED employees, then `approve_week` / `approve_month` with `employeeIds`. Without `employeeIds`, it acts on your own period.
+- Capra employee: mark the **month** complete with `complete_month` once all hours are logged. Weekly completion is no longer needed from 2026-10-01.
+- Manager: `get_month_status` to find COMPLETED employees, then `approve_month` with `employeeIds`. Without `employeeIds`, it acts on your own period.
 - Reverse via `unapprove_*` / `reopen_*`.
 
 ### Monthly Tempo sync (this repo's purpose)
-Two options exist. See [feedback memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md) for defaults. Always `--dry-run` first, then post. Only the chargeable **Konsulentbistand** hours (7.5/day) sync — the 0.5h lunch line stays in Tripletex. Target issue: `HEIHU-1`.
+Two options exist. Always `--dry-run` first, then post. Sync only the actual chargeable **Konsulentbistand** hours. From October 2026, there is no separate lunch entry. Target issue: `HEIHU-1`.
 
 - **MCP path** (preferred when hours were logged via the MCP this session): `search_hour_entries { dateFrom, dateTo }` for the month, keep only `Konsulentbistand` lines, build a JSON array of `{date, hours}`, and pipe it to the script's stdin mode — no CSV needed:
   ```bash
@@ -171,9 +167,7 @@ See [REFERENCE.md](REFERENCE.md) for the full per-tool breakdown. Categories:
 ## Project-specific context
 
 Magnus is a Capra consultant logging to Gjensidige. Defaults:
-- **Project**: `Innovasjon i privat` (customer *Gjensidige Business Services AB*). Note: "Gjensidige" alone is not the project name.
-- **Daily pattern**: 7.5h `Konsulentbistand` (chargeable) + 0.5h `Lunsj - ikke kundebetalt` (not chargeable) = 8h.
-- **Vacation pattern**: `Ferie` is a single 8h line, no project, no lunch line. The 7.5 + 0.5 split applies to workdays only.
-- **Tempo target**: single Jira issue `HEIHU-1`; only the 7.5h Konsulentbistand syncs.
-
-See [user_consultant memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/user_consultant.md) and [feedback_sync_workflow memory](../../../../../.claude/projects/-Users-magnus-rodseth-dev-capra-tripletex-to-tempo/memory/feedback_sync_workflow.md).
+- **Project**: `Innovasjon i privat` (customer *Gjensidige Forsikring ASA*). Note: "Gjensidige" alone is not the project name.
+- **Daily pattern from 2026-10-01**: 7.5h on the relevant project activity, with no lunch entry. Verify activity names after Capra's code changes.
+- **Vacation pattern**: `Ferie` has no project; confirm the hours per full day under the new rules before registration.
+- **Tempo target**: single Jira issue `HEIHU-1`; sync only actual chargeable `Konsulentbistand` hours.
