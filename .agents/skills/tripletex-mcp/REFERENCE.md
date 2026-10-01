@@ -10,8 +10,8 @@ Register or update hour entries. Up to 200 per call.
 Per entry:
 - `date` (yyyy-MM-dd, required)
 - `hours` (>0, rounded to 2 decimals, required)
-- Project: pass `projectId` OR `projectName`. For general activities (Ferie, Sykdom, Administrasjon) omit both, or pass `projectId=0`.
-  - `Ferie` is registered as **8h** per day (not 7.5h), as a single line with no accompanying lunch entry.
+- Project: pass `projectId` OR `projectName`. For general activities (`Interntid`, `Interntid (Overtidsgodkjent)`, Ferie, Sykdom) omit both, or pass `projectId=0`. Add a comment for approved overtime.
+  - From 2026-10-01, standard workdays are **7.5h without a lunch entry**. Confirm the new full-day hours for vacation and other absence before registering them; the earlier 8h vacation instruction may have changed.
 - Activity: pass `activityId` OR `activityName` (required).
 - `comment` (optional free text, preserved on updates if omitted).
 
@@ -64,6 +64,7 @@ Whether the user is clocked in or out, with start time, activity, and project if
 
 ### `complete_week` / `complete_month`
 Employee marks the period done. Allows manager review.
+For Capra, use `complete_month` from October 2026. Weekly completion is no longer required.
 
 ### `get_week_status` / `get_month_status`
 Fetch state for one or more employees.
@@ -363,5 +364,5 @@ All enforced server-side per employee.
 - fastpris = fixed-price project
 - løpende = hourly-rate project
 - Konsulentbistand = consulting work (this user's default activity)
-- Administrasjon, Ferie, Sykdom = general (non-project) activities
+- Interntid, Interntid (Overtidsgodkjent), Ferie, Sykdom = general (non-project) activities; confirm each is currently available before logging.
 - Månedsoversikt = monthly overview (the Tripletex CSV export)
